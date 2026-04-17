@@ -196,7 +196,102 @@ elif pagina == "Visualización":
 
 elif pagina == "Prueba Z":
     st.header("🔬 Prueba de Hipótesis Z")
-    st.write("Módulo en desarrollo")
+
+    if "datos" not in st.session_state:
+        st.warning("⚠️ Primero carga o genera datos en el módulo de Carga de Datos.")
+    else:
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from scipy import stats
+
+        datos = np.array(st.session_state.datos)
+        media_muestral = float(np.mean(datos))
+        n = len(datos)
+
+        st.markdown(" Parámetros de la prueba")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            mu0 = st.number_input("Hipótesis nula H₀: µ =", value=0.0)
+            sigma = st.number_input("Desviación estándar poblacional (σ)", value=1.0, min_value=0.01)
+        with col2:
+            alpha = st.selectbox("Nivel de significancia (α)", [0.01, 0.05, 0.10], index=1)
+            tipo = st.selectbox("Tipo de prueba", ["Bilateral (≠)", "Cola izquierda (<)", "Cola derecha (>)"])
+
+        st.markdown("---")
+        st.markdown(" Resultados")
+
+        # Cálculo del estadístico Z
+        Z = (media_muestral - mu0) / (sigma / np.sqrt(n))
+
+        # p-value según tipo de prueba
+        if tipo == "Bilateral (≠)":
+            p_value = 2 * (1 - stats.norm.cdf(abs(Z)))
+            z_critico = stats.norm.ppf(1 - alpha / 2)
+            rechaza = abs(Z) > z_critico
+        elif tipo == "Cola izquierda (<)":
+            p_value = stats.norm.cdf(Z)
+            z_critico = -stats.norm.ppf(1 - alpha)
+            rechaza = Z < z_critico
+        else:
+            p_value = 1 - stats.norm.cdf(Z)
+            z_critico = stats.norm.ppf(1 - alpha)
+            rechaza = Z > z_critico
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Media muestral (x̄)", f"{media_muestral:.4f}")
+        col2.metric("Estadístico Z", f"{Z:.4f}")
+        col3.metric("p-value", f"{p_value:.4f}")
+        col4.metric("Z crítico", f"{z_critico:.4f}")
+
+        if rechaza:
+            st.error(f"❌ Se RECHAZA H₀ — El estadístico Z={Z:.4f} cae en la región de rechazo (α={alpha})")
+        else:
+            st.success(f"✅ No se rechaza H₀ — El estadístico Z={Z:.4f} no cae en la región de rechazo (α={alpha})")
+
+        st.markdown("---")
+
+        # Gráfica de la curva con región de rechazo
+        st.subheader("Curva normal con región de rechazo")
+        fig, ax = plt.subplots(figsize=(9, 4))
+        ax.set_facecolor("#000000")
+        fig.patch.set_facecolor("#000000")
+
+        x = np.linspace(-4, 4, 400)
+        y = stats.norm.pdf(x)
+        ax.plot(x, y, color="white", linewidth=2)
+
+        if tipo == "Bilateral (≠)":
+            ax.fill_between(x, y, where=(x <= -z_critico), color="#ef4444", alpha=0.6, label="Región de rechazo")
+            ax.fill_between(x, y, where=(x >= z_critico), color="#ef4444", alpha=0.6)
+            ax.fill_between(x, y, where=((x > -z_critico) & (x < z_critico)), color="#22c55e", alpha=0.3, label="No rechazo")
+        elif tipo == "Cola izquierda (<)":
+            ax.fill_between(x, y, where=(x <= z_critico), color="#ef4444", alpha=0.6, label="Región de rechazo")
+            ax.fill_between(x, y, where=(x > z_critico), color="#22c55e", alpha=0.3, label="No rechazo")
+        else:
+            ax.fill_between(x, y, where=(x >= z_critico), color="#ef4444", alpha=0.6, label="Región de rechazo")
+            ax.fill_between(x, y, where=(x < z_critico), color="#22c55e", alpha=0.3, label="No rechazo")
+
+        ax.axvline(Z, color="#facc15", linewidth=2, linestyle="--", label=f"Z calculado = {Z:.4f}")
+        ax.tick_params(colors="white")
+        for spine in ax.spines.values():
+            spine.set_edgecolor("white")
+        ax.legend(facecolor="#1e1e1e", labelcolor="white")
+        st.pyplot(fig)
+
+        # Guarda resultados para el módulo de IA
+        st.session_state.resultado_z = {
+            "media_muestral": media_muestral,
+            "mu0": mu0,
+            "sigma": sigma,
+            "n": n,
+            "alpha": alpha,
+            "tipo": tipo,
+            "Z": Z,
+            "z_critico": z_critico,
+            "p_value": p_value,
+            "rechaza": rechaza
+        }
 
 elif pagina == "Asistente IA":
     st.header("🤖 Asistente Estadístico con IA")
