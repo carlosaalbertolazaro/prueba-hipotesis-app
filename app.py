@@ -295,4 +295,129 @@ elif pagina == "Prueba Z":
 
 elif pagina == "Asistente IA":
     st.header("🤖 Asistente Estadístico con IA")
-    st.write("Módulo en desarrollo")
+
+    import google.generativeai as genai
+
+    GEMINI_API_KEY = "AIzaSyAagJpK0HvVCfjT2eji1WBX8ynijkiiYKQ"
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    opciones_ia = {
+        "📊 Interpretar distribución": "distribucion",
+        "🔬 Analizar Prueba Z": "prueba_z",
+        "🔁 Comparar ambos análisis": "comparar"
+    }
+
+    seleccion = st.radio("¿Qué quieres que analice la IA?", list(opciones_ia.keys()), horizontal=True)
+    modo = opciones_ia[seleccion]
+
+    st.markdown("---")
+
+    # --- Construir prompt según selección ---
+    prompt = None
+    listo = True
+
+    if modo == "distribucion":
+        if "sesgo" not in st.session_state:
+            st.warning("⚠️ Primero genera datos y ve al módulo de Visualización.")
+            listo = False
+        else:
+            prompt = f"""Soy estudiante de ingeniería y analicé una distribución de datos con los siguientes resultados estadísticos:
+- Número de observaciones: {st.session_state.n}
+- Media: {st.session_state.media:.4f}
+- Desviación estándar: {st.session_state.desv:.4f}
+- Sesgo: {st.session_state.sesgo:.4f}
+- p-value prueba Shapiro-Wilk: {st.session_state.p_shapiro:.4f}
+
+Con base en estos indicadores (NO en los datos crudos):
+1. ¿La distribución parece normal? ¿Por qué?
+2. ¿Hay sesgo relevante? ¿En qué dirección?
+3. ¿Qué implicaciones prácticas tiene esto para un análisis estadístico?
+Explica de forma clara y educativa."""
+
+    elif modo == "prueba_z":
+        if "resultado_z" not in st.session_state:
+            st.warning("⚠️ Primero ejecuta una Prueba Z en el módulo correspondiente.")
+            listo = False
+        else:
+            r = st.session_state.resultado_z
+            prompt = f"""Soy estudiante de ingeniería y realicé una prueba de hipótesis Z con estos parámetros:
+- Media muestral: {r['media_muestral']:.4f}
+- Media hipotética H₀: {r['mu0']}
+- Tamaño de muestra: {r['n']}
+- Desviación estándar poblacional: {r['sigma']}
+- Nivel de significancia α: {r['alpha']}
+- Tipo de prueba: {r['tipo']}
+- Estadístico Z calculado: {r['Z']:.4f}
+- Z crítico: {r['z_critico']:.4f}
+- p-value: {r['p_value']:.4f}
+- Decisión automática: {"Se rechaza H₀" if r['rechaza'] else "No se rechaza H₀"}
+
+Con base en esto:
+1. ¿Se rechaza H₀? Justifica con el estadístico y el p-value.
+2. ¿Los supuestos de la prueba Z son razonables dado el tamaño de muestra?
+3. ¿Qué significa esta decisión en términos prácticos?
+Explica de forma clara y educativa."""
+
+    elif modo == "comparar":
+        if "sesgo" not in st.session_state or "resultado_z" not in st.session_state:
+            st.warning("⚠️ Necesitas haber pasado por Visualización y Prueba Z primero.")
+            listo = False
+        else:
+            r = st.session_state.resultado_z
+            prompt = f"""Soy estudiante de ingeniería. Analicé una distribución y realicé una prueba Z. Aquí el resumen:
+
+DISTRIBUCIÓN:
+- Observaciones: {st.session_state.n}
+- Media: {st.session_state.media:.4f}
+- Desviación estándar: {st.session_state.desv:.4f}
+- Sesgo: {st.session_state.sesgo:.4f}
+- p-value Shapiro-Wilk: {st.session_state.p_shapiro:.4f}
+
+PRUEBA Z:
+- H₀: µ = {r['mu0']} | Tipo: {r['tipo']} | α = {r['alpha']}
+- Z calculado: {r['Z']:.4f} | Z crítico: {r['z_critico']:.4f}
+- p-value: {r['p_value']:.4f}
+- Decisión: {"Se rechaza H₀" if r['rechaza'] else "No se rechaza H₀"}
+
+Con base en ambos análisis:
+1. ¿La distribución era adecuada para aplicar una prueba Z?
+2. ¿La decisión de la prueba es confiable dado el comportamiento de los datos?
+3. ¿Qué conclusión general puedes dar sobre este análisis estadístico?
+Explica de forma clara y educativa."""
+    # --- Mostrar prompt y ejecutar ---
+    if listo and prompt:
+        with st.expander("📋 Ver prompt enviado a la IA"):
+            st.code(prompt)
+        if st.button("🤖 Consultar a Gemini"):
+            with st.spinner("Analizando con Gemini..."):
+                try:
+                    response = model.generate_content(prompt)
+                    respuesta = response.text
+                    st.session_state.respuesta_ia = respuesta
+
+                    st.markdown("### 💬 Respuesta de Gemini")
+                    st.markdown(respuesta)
+
+                    if modo in ["prueba_z", "comparar"] and "resultado_z" in st.session_state:
+                        st.markdown("---")
+                        st.markdown("### App vs. IA")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("**Decisión de la app:**")
+                            if st.session_state.resultado_z['rechaza']:
+                                st.error("❌ Se rechaza H₀")
+                            else:
+                                st.success("✅ No se rechaza H₀")
+                        with col2:
+                            st.markdown("**¿La IA coincide?**")
+                            texto = respuesta.lower()
+                            if st.session_state.resultado_z['rechaza'] and "rechaza" in texto:
+                                st.success("✅ Coincide")
+                            elif not st.session_state.resultado_z['rechaza'] and "no se rechaza" in texto:
+                                st.success("✅ Coincide")
+                            else:
+                                st.warning("⚠️ Revisa manualmente")
+
+                except Exception as e:
+                    st.error(f"Error al consultar Gemini: {e}")
