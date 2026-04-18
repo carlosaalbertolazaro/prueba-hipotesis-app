@@ -59,20 +59,34 @@ if pagina == "Inicio":
 elif pagina == "Carga de Datos":
     st.header("📂 Carga de Datos")
 
-    opcion = st.radio("¿Cómo quieres cargar los datos?", ["📁 Subir CSV", "🎲 Generar datos sintéticos"])
+    opcion = st.radio("¿Cómo quieres cargar los datos?", 
+                      ["📁 Subir CSV", "🎲 Generar datos sintéticos"],
+                      index=0 if "datos" not in st.session_state else 
+                            0 if st.session_state.get("fuente") == "csv" else 1)
 
     if opcion == "📁 Subir CSV":
         archivo = st.file_uploader("Sube tu archivo CSV", type=["csv"])
         if archivo:
             import pandas as pd
             df = pd.read_csv(archivo)
+            st.session_state.df = df
+            st.session_state.fuente = "csv"
+
+        if "df" in st.session_state and st.session_state.get("fuente") == "csv":
+            df = st.session_state.df
             st.success(f"Archivo cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
             st.dataframe(df.head(10))
             columnas_numericas = df.select_dtypes(include="number").columns.tolist()
             if columnas_numericas:
-                col_sel = st.selectbox("Selecciona la variable a analizar:", columnas_numericas)
-                st.session_state.datos = df[col_sel].dropna().tolist()
-                st.session_state.variable = col_sel
+                col_actual = st.session_state.get("variable", columnas_numericas[0])
+                idx = columnas_numericas.index(col_actual) if col_actual in columnas_numericas else 0
+                col_sel = st.selectbox("Selecciona la variable a analizar:", columnas_numericas, index=idx)
+                if col_sel != st.session_state.get("variable"):
+                    st.session_state.datos = df[col_sel].dropna().tolist()
+                    st.session_state.variable = col_sel
+                    # Limpiar análisis anteriores al cambiar variable
+                    for key in ["sesgo", "p_shapiro", "media", "desv", "n", "resultado_z"]:
+                        st.session_state.pop(key, None)
                 st.success(f"Variable seleccionada: **{col_sel}** ({len(st.session_state.datos)} observaciones)")
             else:
                 st.warning("El CSV no tiene columnas numéricas.")
@@ -91,8 +105,17 @@ elif pagina == "Carga de Datos":
             datos = np.random.normal(loc=media, scale=desv, size=int(n)).tolist()
             st.session_state.datos = datos
             st.session_state.variable = "Datos sintéticos"
+            st.session_state.fuente = "sintetica"
+            # Limpiar análisis anteriores al generar nuevos datos
+            for key in ["sesgo", "p_shapiro", "media", "desv", "n", "resultado_z"]:
+                st.session_state.pop(key, None)
             st.success(f"✅ Generados {int(n)} datos con µ={media} y σ={desv}")
-            st.write(f"*Vista previa:* {[round(x,2) for x in datos[:10]]}...")
+            st.write(f"**Vista previa:** {[round(x,2) for x in datos[:10]]}...")
+
+    # Mostrar resumen si ya hay datos cargados
+    if "datos" in st.session_state:
+        st.markdown("---")
+        st.info(f"📌 Datos activos: **{st.session_state.variable}** — {len(st.session_state.datos)} observaciones. Navega a Visualización o Prueba Z cuando quieras.")
 
 elif pagina == "Visualización":
     st.header("📈 Visualización de Distribución")
