@@ -2,30 +2,148 @@ import streamlit as st
 
 st.set_page_config(page_title="Prueba de Hipótesis", layout="wide")
 
-# estilo del siderbar (Menos simple)
 st.markdown("""
 <style>
+/* Fuente y fondo general */
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap');
+
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    background-color: #020b18 !important;
+    color: #e0f7ff !important;
+    font-family: 'Rajdhani', sans-serif !important;
+}
+
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #000000;
+    background-color: #020b18 !important;
+    border-right: 1px solid #00d4ff33 !important;
 }
 [data-testid="stSidebarContent"] * {
-    color: white !important;
+    color: #e0f7ff !important;
 }
+
+/* Título del menú */
+[data-testid="stSidebar"] h3 {
+    color: #00d4ff !important;
+    font-family: 'Share Tech Mono', monospace !important;
+    letter-spacing: 3px !important;
+    font-size: 13px !important;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+/* Botones del sidebar */
 div.stButton > button {
-    background-color: #000000 !important;
-    color: white !important;
-    border: 2px solid white !important;
-    border-radius: 12px !important;
-    padding: 14px 0 !important;
+    background-color: #020b18 !important;
+    color: #00d4ff !important;
+    border: 1px solid #00d4ff55 !important;
+    border-radius: 4px !important;
+    padding: 12px 0 !important;
     margin-bottom: 8px !important;
     width: 100% !important;
-    font-size: 15px !important;
-    transition: background 0.2s;
+    font-size: 14px !important;
+    font-family: 'Rajdhani', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 1px !important;
+    transition: all 0.2s !important;
+    text-transform: uppercase !important;
 }
 div.stButton > button:hover {
-    background-color: #222222 !important;
-    border-color: #aaaaaa !important;
+    background-color: #00d4ff15 !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 12px #00d4ff44 !important;
+    color: #ffffff !important;
 }
+
+/* Headers */
+h1 { 
+    color: #00d4ff !important; 
+    font-family: 'Share Tech Mono', monospace !important;
+    letter-spacing: 4px !important;
+    text-transform: uppercase !important;
+    border-bottom: 1px solid #00d4ff33;
+    padding-bottom: 10px;
+}
+h2, h3 { 
+    color: #00d4ff !important;
+    font-family: 'Rajdhani', sans-serif !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+}
+
+/* Métricas */
+[data-testid="stMetric"] {
+    background-color: #0a1628 !important;
+    border: 1px solid #00d4ff33 !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #00d4ff99 !important;
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 11px !important;
+    letter-spacing: 2px !important;
+    text-transform: uppercase !important;
+}
+[data-testid="stMetricValue"] {
+    color: #00d4ff !important;
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 22px !important;
+}
+
+/* Cajas de info/success/warning/error */
+[data-testid="stAlert"] {
+    border-radius: 4px !important;
+    border-left: 3px solid #00d4ff !important;
+    background-color: #0a1628 !important;
+    font-family: 'Rajdhani', sans-serif !important;
+    font-size: 15px !important;
+}
+
+/* Inputs y selectbox */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stSelectbox"] * {
+    background-color: #0a1628 !important;
+    color: #e0f7ff !important;
+    border-color: #00d4ff44 !important;
+    font-family: 'Rajdhani', sans-serif !important;
+}
+
+/* Radio buttons */
+[data-testid="stRadio"] label {
+    color: #e0f7ff !important;
+    font-family: 'Rajdhani', sans-serif !important;
+    font-size: 15px !important;
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    border: 1px solid #00d4ff33 !important;
+}
+
+/* Divisor */
+hr {
+    border-color: #00d4ff22 !important;
+}
+
+/* Expander */
+[data-testid="stExpander"] {
+    background-color: #0a1628 !important;
+    border: 1px solid #00d4ff33 !important;
+    border-radius: 4px !important;
+}
+
+/* Spinner */
+[data-testid="stSpinner"] * {
+    color: #00d4ff !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #020b18; }
+::-webkit-scrollbar-thumb { background: #00d4ff44; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #00d4ff; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,9 +170,29 @@ pagina = st.session_state.pagina
 # Contenidos por pagina
 
 if pagina == "Inicio":
-    st.title("📊 App de Prueba de Hipótesis")
-    st.markdown("Probabilidad y Estadística")
-    st.info("Usa el menú lateral para navegar entre los módulos.")
+    st.markdown("""
+    <div style='text-align:center; padding: 40px 0 20px 0;'>
+        <div style='font-family: Share Tech Mono, monospace; font-size: 11px; 
+                    color: #00d4ff99; letter-spacing: 6px; text-transform: uppercase;
+                    margin-bottom: 8px;'>Sistema de análisis estadístico</div>
+        <div style='font-family: Share Tech Mono, monospace; font-size: 36px; 
+                    color: #00d4ff; letter-spacing: 8px; text-transform: uppercase;
+                    text-shadow: 0 0 20px #00d4ff66;'>PRUEBA DE HIPÓTESIS</div>
+        <div style='font-family: Rajdhani, sans-serif; font-size: 14px; 
+                    color: #e0f7ff88; letter-spacing: 4px; margin-top: 8px;'>
+                    PROBABILIDAD Y ESTADÍSTICA — 2026</div>
+    </div>
+    <hr style='border-color: #00d4ff33; margin: 30px 0;'/>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("MÓDULOS", "5")
+    col2.metric("PRUEBAS", "Z-Test")
+    col3.metric("IA", "Gemini 2.5")
+    col4.metric("STATUS", "ACTIVO")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("▶ Comienza cargando tus datos en el módulo CARGA DE DATOS")
 
 elif pagina == "Carga de Datos":
     st.header("📂 Carga de Datos")
