@@ -107,9 +107,24 @@ elif pagina == "Visualización":
         datos = np.array(st.session_state.datos)
         variable = st.session_state.variable
 
+        # --- Cálculos primero ---
+        sesgo = stats.skew(datos)
+        curtosis = stats.kurtosis(datos)
+        stat_sw, p_sw = stats.shapiro(datos[:50] if len(datos) > 50 else datos)
+        q1, q3 = np.percentile(datos, [25, 75])
+        iqr = q3 - q1
+        outliers = datos[(datos < q1 - 1.5*iqr) | (datos > q3 + 1.5*iqr)]
+
+        # --- Guardar en session_state ---
+        st.session_state.media = float(np.mean(datos))
+        st.session_state.desv = float(np.std(datos))
+        st.session_state.n = len(datos)
+        st.session_state.sesgo = float(sesgo)
+        st.session_state.p_shapiro = float(p_sw)
+
         st.subheader(f"Variable: `{variable}` — {len(datos)} observaciones")
 
-        #Estadísticas básicas
+        # --- Estadísticas básicas ---
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Media", f"{np.mean(datos):.4f}")
         col2.metric("Desv. Estándar", f"{np.std(datos):.4f}")
@@ -118,7 +133,7 @@ elif pagina == "Visualización":
 
         st.markdown("---")
 
-        #Histograma
+        # --- Histograma ---
         st.subheader("Histograma con curva normal")
         fig1, ax1 = plt.subplots(figsize=(8, 4))
         ax1.set_facecolor("#000000")
@@ -136,17 +151,17 @@ elif pagina == "Visualización":
         ax1.legend(facecolor="#1e1e1e", labelcolor="white")
         st.pyplot(fig1)
 
-        #Boxplot
+        # --- Boxplot ---
         st.subheader("Boxplot")
         fig2, ax2 = plt.subplots(figsize=(8, 2))
         ax2.set_facecolor("#000000")
         fig2.patch.set_facecolor("#000000")
-        bp = ax2.boxplot(datos, vert=False, patch_artist=True,
-                         boxprops=dict(facecolor="#7c3aed", color="white"),
-                         medianprops=dict(color="white", linewidth=2),
-                         whiskerprops=dict(color="white"),
-                         capprops=dict(color="white"),
-                         flierprops=dict(markerfacecolor="white", marker="o"))
+        ax2.boxplot(datos, vert=False, patch_artist=True,
+                    boxprops=dict(facecolor="#7c3aed", color="white"),
+                    medianprops=dict(color="white", linewidth=2),
+                    whiskerprops=dict(color="white"),
+                    capprops=dict(color="white"),
+                    flierprops=dict(markerfacecolor="white", marker="o"))
         ax2.tick_params(colors="white")
         for spine in ax2.spines.values():
             spine.set_edgecolor("white")
@@ -154,45 +169,45 @@ elif pagina == "Visualización":
 
         st.markdown("---")
 
-        #Análisis automático
+        # --- Análisis automático ---
         st.subheader("🔍 Análisis automático")
-
-        sesgo = stats.skew(datos)
-        curtosis = stats.kurtosis(datos)
-        stat_sw, p_sw = stats.shapiro(datos[:50] if len(datos) > 50 else datos)
 
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Sesgo", f"{sesgo:.4f}")
-            if abs(sesgo) < 0.5:
-                st.success("✅ Distribución aproximadamente simétrica")
-            elif sesgo > 0:
-                st.info("↗️ Sesgo positivo (cola derecha)")
-            else:
-                st.info("↙️ Sesgo negativo (cola izquierda)")
-
         with col2:
             st.metric("p-value Shapiro-Wilk", f"{p_sw:.4f}")
-            if p_sw > 0.05:
-                st.success("✅ No se rechaza normalidad (p > 0.05)")
-            else:
-                st.warning("⚠️ Posible no normalidad (p ≤ 0.05)")
 
-        # Outliers
-        q1, q3 = np.percentile(datos, [25, 75])
-        iqr = q3 - q1
-        outliers = datos[(datos < q1 - 1.5*iqr) | (datos > q3 + 1.5*iqr)]
-        if len(outliers) > 0:
-            st.warning(f"⚠️ Se detectaron **{len(outliers)} outliers**")
+        st.markdown("---")
+        st.subheader("❓ Preguntas de diagnóstico")
+
+        st.markdown("**¿La distribución parece normal?**")
+        if p_sw > 0.05 and abs(sesgo) < 0.5:
+            st.success("✅ Sí — p-value > 0.05 y sesgo bajo. La distribución se comporta aproximadamente normal.")
+        elif p_sw > 0.05 and abs(sesgo) >= 0.5:
+            st.warning("⚠️ Parcialmente — El p-value sugiere normalidad pero hay sesgo considerable.")
         else:
-            st.success("✅ No se detectaron outliers")
+            st.error("❌ No — p-value ≤ 0.05, la distribución no es normal.")
 
-        # Guarda estadísticas para usarlas en Prueba Z e IA
-        st.session_state.media = float(np.mean(datos))
-        st.session_state.desv = float(np.std(datos))
-        st.session_state.n = len(datos)
-        st.session_state.sesgo = float(sesgo)
-        st.session_state.p_shapiro = float(p_sw)
+        st.markdown("---")
+
+        st.markdown("**¿Hay sesgo?**")
+        if abs(sesgo) < 0.5:
+            st.success(f"✅ No hay sesgo significativo (sesgo = {sesgo:.4f}). Distribución aproximadamente simétrica.")
+        elif sesgo > 0.5:
+            st.warning(f"↗️ Sesgo positivo (sesgo = {sesgo:.4f}). Cola hacia la derecha.")
+        else:
+            st.warning(f"↙️ Sesgo negativo (sesgo = {sesgo:.4f}). Cola hacia la izquierda.")
+
+        st.markdown("---")
+
+        st.markdown("**¿Hay outliers?**")
+        if len(outliers) == 0:
+            st.success(f"✅ No se detectaron outliers en `{variable}`.")
+        elif len(outliers) <= 3:
+            st.warning(f"⚠️ {len(outliers)} outlier(s) detectado(s): {[round(float(o), 4) for o in outliers]}")
+        else:
+            st.error(f"❌ {len(outliers)} outliers detectados. Puede afectar los resultados de la prueba Z.")
 
 elif pagina == "Prueba Z":
     st.header("🔬 Prueba de Hipótesis Z")
@@ -298,8 +313,22 @@ elif pagina == "Asistente IA":
 
     import google.generativeai as genai
 
-    GEMINI_API_KEY = "AIzaSyAagJpK0HvVCfjT2eji1WBX8ynijkiiYKQ"
-    genai.configure(api_key=GEMINI_API_KEY)
+    if "gemini_key" not in st.session_state:
+        st.session_state.gemini_key = ""
+
+    api_key = st.text_input("🔑 Ingresa tu API Key de Gemini",
+                             value=st.session_state.gemini_key,
+                             type="password",
+                             placeholder="AIza...")
+
+    if api_key:
+        st.session_state.gemini_key = api_key
+
+    if not st.session_state.gemini_key:
+        st.warning("⚠️ Ingresa tu API Key para continuar.")
+        st.stop()
+
+    genai.configure(api_key=st.session_state.gemini_key)
     model = genai.GenerativeModel("gemini-2.5-flash")
 
     opciones_ia = {
@@ -313,7 +342,6 @@ elif pagina == "Asistente IA":
 
     st.markdown("---")
 
-    # --- Construir prompt según selección ---
     prompt = None
     listo = True
 
@@ -385,10 +413,11 @@ Con base en ambos análisis:
 2. ¿La decisión de la prueba es confiable dado el comportamiento de los datos?
 3. ¿Qué conclusión general puedes dar sobre este análisis estadístico?
 Explica de forma clara y educativa."""
-    # --- Mostrar prompt y ejecutar ---
+
     if listo and prompt:
         with st.expander("📋 Ver prompt enviado a la IA"):
             st.code(prompt)
+
         if st.button("🤖 Consultar a Gemini"):
             with st.spinner("Analizando con Gemini..."):
                 try:
